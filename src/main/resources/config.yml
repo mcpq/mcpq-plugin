@@ -1,0 +1,25 @@
+# default config.yml
+
+# Bind to given host which will allow incoming connections from that given host and reject all others.
+# By default, "localhost" will only allow connections from the same machine the server is running on.
+# Otherwise, "0.0.0.0" would allow connections from everywhere.
+# (Attention: Allowing requests from everywhere may compromise the integrity of the server!)
+#
+# Deutsch:
+# Der host gibt an von welchen Quellen Verbindungen zum Plugin hergestellt werden dürfen.
+# "localhost" erlaubt ausschließlich Verbindungen vom Computer auf dem der Minecraft Server läuft.
+# Andererseits kann "0.0.0.0" verwendet werden um Verbindungen aus allen Quellen zu erlauben.
+# (Achtung: Requests aus allen Quellen zu erlauben kann unsicher sein und deinen Server gefährden!)
+host: localhost
+
+# The port the plugin server should listen on, i.e., where commands can be sent to.
+#
+# Deutsch:
+# Der Port auf dem Befehle von Clients an den Plugin-Server geschickt werden können.
+port: 1789
+
+# If "true" print additional debug output (especially of gRPC and command interceptors)
+#
+# Deutsch:
+# Wenn "true" zeige zusätzliche Nachrichten vom Server für Fehlerfindungszwecke an
+debug: false

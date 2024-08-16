@@ -1,0 +1,117 @@
+buildscript {
+    ext.projectName = "mcpq"
+
+    // bukkit API version - lowest compatible Minecraft version
+    ext.mcVersion = "1.18.2"
+    // version of minecraft.proto file - reflected in git submodule
+    ext.majorVersion = "1"
+    // version of this plugins iteration - increase by one on change
+    ext.minorVersion = "0"
+
+
+    ext.recommendedGradleVersion = "7.2"
+
+    ext.javaVersion = JavaVersion.VERSION_17
+    ext.kotlinVersion = "1.8.0"
+    ext.shadowVersion = "7.1.2"
+
+    ext.protobufPlugInVersion = "0.9.1"
+    // see https://github.com/protocolbuffers/protobuf/issues/9236#issuecomment-977718615
+    ext.protobufVersion = "3.17.3"
+    ext.coroutinesVersion = "1.6.4"
+    ext.grpcVersion = "1.52.1"
+    // see https://stackoverflow.com/questions/65385305/could-not-find-protoc-gen-grpc-kotlin-1-0-0-windows-x86-64-exe-io-grpcprotoc-g
+    ext.grpcKotlinVersion = "1.3.0"
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath "com.google.protobuf:protobuf-gradle-plugin:$protobufPlugInVersion"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+    }
+}
+
+plugins {
+    id "idea"
+    id "org.jetbrains.kotlin.jvm" version "${kotlinVersion}"
+    id "com.google.protobuf" version "${protobufPlugInVersion}"
+    id "com.github.johnrengelman.shadow" version "${shadowVersion}"
+}
+
+version "$majorVersion.$minorVersion"
+group "org.mcpq"
+
+repositories {
+    mavenCentral()
+    maven {
+        url = "https://hub.spigotmc.org/nexus/content/repositories/snapshots/"
+        content {
+            includeGroup "org.bukkit"
+            includeGroup "org.spigotmc"
+        }
+    }
+}
+
+dependencies {
+    // bukkit api - Minecraft version dependent
+    compileOnly "org.spigotmc:spigot-api:$mcVersion-R0.1-SNAPSHOT"
+
+    // fix compile java alla https://github.com/grpc/grpc-java/issues/4725
+    compileOnly "javax.annotation:javax.annotation-api:1.3.2"
+
+    // coroutines
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion"
+
+    // grpc
+    implementation "com.google.protobuf:protobuf-java:$protobufVersion"
+    implementation "com.google.protobuf:protobuf-kotlin:$protobufVersion"
+    implementation "com.google.protobuf:protobuf-java-util:$protobufVersion"
+
+    // for rpc io (server and stubs)
+    implementation "io.grpc:grpc-netty-shaded:$grpcVersion"
+    implementation "io.grpc:grpc-protobuf:$grpcVersion"
+    implementation "io.grpc:grpc-stub:$grpcVersion"
+    implementation "io.grpc:grpc-kotlin-stub:$grpcKotlinVersion"
+}
+
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:$protobufVersion"
+    }
+
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:$grpcVersion"
+        }
+
+        grpckt {
+//            artifact = "io.grpc:protoc-gen-grpc-kotlin:$grpcKotlinVersion"
+            artifact = "io.grpc:protoc-gen-grpc-kotlin:$grpcKotlinVersion:jdk8@jar"
+        }
+    }
+
+    generateProtoTasks {
+        all().each { task ->
+            task.plugins {
+                // Generate Java gRPC classes
+                grpc { }
+                // Generate Kotlin gRPC using the custom plugin from library
+                grpckt { }
+            }
+        }
+    }
+}
+
+shadowJar {
+//    minimize {
+//        exclude(dependency("io.grpc:grpc-netty-shaded"))
+//    }
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = javaVersion
+    // kotlinOptions.javaParameters = true
+}
