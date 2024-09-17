@@ -47,6 +47,14 @@ The following client implementations exist for the following languages:
 
 > If you implement your own client for the [protobuf](https://github.com/mcpq/mcpq-proto) interface, please let me know so that I can add a link to this list!
 
+## Configuration
+
+The plugin comes with a config file that will be generated/read from `plugins/MCPQ/config.yml` in which the following can be configured:
+
+* host: localhost - hostname or ip address from which connections to the plugin are accepted. The default `localhost` does only allow connections from the same device the server is running on, while `0.0.0.0` would allow connections from anywhere.
+* port: 1789 - the port on which a MCPQ client can connect to the plugin
+* debug: false - whether or not to print additional debug information especially for gRPC
+
 ## Build Instructions
 
 Before building make sure to download the correct version of the [protobuf protocol version](https://github.com/mcpq/mcpq-proto),
