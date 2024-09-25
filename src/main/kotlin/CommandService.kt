@@ -11,6 +11,7 @@ import org.bukkit.Material
 import org.bukkit.entity.EntityType
 import org.bukkit.event.HandlerList
 import protocol.MinecraftGrpcKt
+import protocol.MinecraftOuterClass
 import protocol.MinecraftOuterClass.*
 import java.time.Instant
 import java.util.*
@@ -28,64 +29,116 @@ inline fun Boolean.then(block: () -> Unit) {
 
 class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutineImplBase() {
     val OK: Status = Status.newBuilder().setCode(StatusCode.OK).build()
-    
+
     inline fun mcrun(crossinline block: () -> Unit) = Bukkit.getScheduler()
         .runTask(plugin, kotlinx.coroutines.Runnable {block()})
 
     fun <T : Any> mcrun_blocking(block: () -> T): T {
-        var gotResult = false
-        var result: T? = null
-        val lock = ReentrantLock()
-        val condition = lock.newCondition()
-
-        val runner = kotlinx.coroutines.Runnable {
-            try {
-                result = block()
-            } finally {
-                lock.withLock {
-                    gotResult = true
-                    condition.signal()
-                }
-            }
-        }
-        Bukkit.getScheduler().runTask(plugin, runner) // start task
-        runBlocking {
-            lock.withLock {
-                if (!gotResult) {
-                    condition.await() // wait until task complete
-                }
-            }
-        }
-
-        if (!gotResult) {
-            plugin.logger.severe("mcrun_blocking did not successfully block!")
-            throw RuntimeException("mcrun_blocking did not successfully block!")
-        }
-
-        // here result cannot be null as T : Any is non-nullable
-        return result!!
+        val future = Bukkit.getScheduler().callSyncMethod(plugin, block)
+        return future.get()
     }
 
-    override suspend fun runCommand(request: CommandRequest): Status {
-        val console = Bukkit.getConsoleSender()
-        mcrun {
-            val targetFound = Bukkit.dispatchCommand(console, request.command)
-        }
-        return OK
-    }
-
-    override suspend fun postToChat(request: ChatPostRequest): Status {
-        val numPlayers = Bukkit.broadcastMessage(request.message)
-        return Status.newBuilder()
-            .setCode(StatusCode.OK)
-            .setExtra("$numPlayers") // message was sent to X players
+    override suspend fun getServerInfo(request: ServerInfoRequest): ServerInfoResponse {
+        return ServerInfoResponse.newBuilder()
+            .setMcVersion(Bukkit.getServer().version)
+            .setMcpqVersion(plugin.description.version)
             .build()
     }
 
+    override suspend fun getMaterials(request: MaterialRequest): MaterialResponse {
+        val response = MaterialResponse.newBuilder()
+        val materials = Material.values()
+        if (request.onlyKeys) {
+            materials.forEach {
+                response.addMaterials(MaterialResponse.Material.newBuilder().setKey(it.key.toString()).build())
+            }
+        } else {
+            materials.forEach {
+                response.addMaterials(MaterialResponse.Material.newBuilder()
+                    .setKey(it.key.toString())
+                    .setIsAir(it.isAir)
+                    .setIsBlock(it.isBlock)
+                    .setIsBurnable(it.isBurnable)
+                    .setIsEdible(it.isEdible)
+                    .setIsFlammable(it.isFlammable)
+                    .setIsFuel(it.isFuel)
+                    .setIsInteractable(it.isInteractable)
+                    .setIsItem(it.isItem)
+                    .setIsOccluding(it.isOccluding)
+                    .setIsSolid(it.isSolid)
+                    .setHasGravity(it.hasGravity())
+                    .build()
+                )
+            }
+        }
+        return response.setStatus(OK).build()
+    }
+
+    override suspend fun getEntityTypes(request: EntityTypeRequest): EntityTypeResponse {
+        val response = EntityTypeResponse.newBuilder()
+        val entityTypes = EntityType.values().filter { it != EntityType.UNKNOWN }
+        if (request.onlyKeys) {
+            entityTypes.forEach {
+                response.addTypes(EntityTypeResponse.EntityType.newBuilder().setKey(it.key.toString()).build())
+            }
+        } else {
+            entityTypes.forEach {
+                response.addTypes(EntityTypeResponse.EntityType.newBuilder()
+                    .setKey(it.key.toString())
+                    .setIsSpawnable(it.isSpawnable)
+                    .build()
+                )
+            }
+        }
+        return response.setStatus(OK).build()
+    }
+
+    override suspend fun runCommand(request: CommandRequest): Status {
+        return runCommandWithOptions(request).status
+    }
+
+    override suspend fun runCommandWithOptions(request: CommandRequest): CommandResponse {
+        val console = Bukkit.getConsoleSender()
+        // checkout link, may require plugin?
+        // https://www.spigotmc.org/threads/how-do-i-get-the-output-of-dispatchcommand-command-when-called-by-callsyncmethod.354521/
+        if (request.output) return CommandResponse.newBuilder().setStatus(Status.newBuilder()
+            .setCode(StatusCode.NOT_IMPLEMENTED)
+            .setExtra("CommandRequest.output")
+            .build()).build()
+        if (request.blocking || request.output) {
+            val value = mcrun_blocking {
+                Bukkit.dispatchCommand(console, request.command)
+            }
+            return CommandResponse.newBuilder()
+                .setStatus(Status.newBuilder().setCode(StatusCode.OK).setExtra(value.toString()).build())
+                .build()
+        } else {
+            mcrun {
+                Bukkit.dispatchCommand(console, request.command)
+            }
+            return CommandResponse.newBuilder().setStatus(OK).build()
+        }
+    }
+
+    override suspend fun postToChat(request: ChatPostRequest): Status {
+        if (request.hasPlayer()) {
+            val player = Bukkit.getPlayer(request.player.name)
+                ?: return Status.newBuilder().setCode(StatusCode.PLAYER_NOT_FOUND).setExtra(request.player.name).build()
+            player.sendMessage(request.message)
+            return OK
+        } else {
+            val numPlayers = Bukkit.broadcastMessage(request.message)
+            return Status.newBuilder()
+                .setCode(StatusCode.OK)
+                .setExtra("$numPlayers") // message was sent to X players
+                .build()
+        }
+    }
+
     override suspend fun accessWorlds(request: WorldRequest): WorldResponse {
-        // world.name == folder name (eg. world, world_nether, world_the_end)
-        // world.key == namespace name (eg. minecraft:overworld, minecraft:the_nether, minecraft:the_end)
-        // world.uid == game object id (eg. f4c3968c-99d4-46ff-9bfa-bb45ec6a17ce, ...)
+        // world.name == folder name (e.g. world, world_nether, world_the_end)
+        // world.key == namespace name (e.g. minecraft:overworld, minecraft:the_nether, minecraft:the_end)
+        // world.uid == game object id (e.g. f4c3968c-99d4-46ff-9bfa-bb45ec6a17ce, ...)
         if (request.worldsCount == 0)
             return WorldResponse.newBuilder()
                 .setStatus(OK)

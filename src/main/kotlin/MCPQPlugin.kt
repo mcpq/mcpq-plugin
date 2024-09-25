@@ -6,6 +6,7 @@ import org.bukkit.Bukkit
 import org.bukkit.event.Listener
 import org.bukkit.plugin.java.JavaPlugin
 import org.mcpq.main.util.DebugServerInterceptor
+import org.mcpq.main.util.ExceptionInterceptor
 import java.net.InetSocketAddress
 import java.util.logging.Logger
 
@@ -38,6 +39,7 @@ class MCPQPlugin : JavaPlugin(), Listener {
             .addService(service)
 
         if (debug) serverBuilder.intercept(DebugServerInterceptor())
+        serverBuilder.intercept(ExceptionInterceptor())
         server = serverBuilder.build()
         server!!.start()
         logger.info { "Plugin ready: gRPC server waiting on $host:$port" }

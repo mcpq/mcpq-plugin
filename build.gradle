@@ -4,7 +4,7 @@ buildscript {
     // bukkit API version - lowest compatible Minecraft version
     ext.mcVersion = "1.18.2"
     // version of minecraft.proto file - reflected in git submodule
-    ext.majorVersion = "1"
+    ext.majorVersion = "2"
     // version of this plugins iteration - increase by one on change
     ext.minorVersion = "0"
 

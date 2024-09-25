@@ -1,3 +1,4 @@
 [submodule "src/main/proto"]
 	path = src/main/proto
 	url = https://github.com/mcpq/mcpq-proto.git
+	branch = dev
