@@ -10,9 +10,11 @@ import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.entity.EntityType
 import org.bukkit.event.HandlerList
+import org.mcpq.main.util.MessageInterceptor
 import protocol.MinecraftGrpcKt
 import protocol.MinecraftOuterClass
 import protocol.MinecraftOuterClass.*
+import java.lang.Thread.sleep
 import java.time.Instant
 import java.util.*
 import java.util.concurrent.CancellationException
@@ -101,17 +103,27 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
         val console = Bukkit.getConsoleSender()
         // checkout link, may require plugin?
         // https://www.spigotmc.org/threads/how-do-i-get-the-output-of-dispatchcommand-command-when-called-by-callsyncmethod.354521/
-        if (request.output) return CommandResponse.newBuilder().setStatus(Status.newBuilder()
-            .setCode(StatusCode.NOT_IMPLEMENTED)
-            .setExtra("CommandRequest.output")
-            .build()).build()
-        if (request.blocking || request.output) {
-            val value = mcrun_blocking {
+        if (request.output) { // also blocking
+            // TODO: can only capture Bukkit command output, not from vanilla!
+            val interceptor = MessageInterceptor(console, plugin.logger)
+            try {
+                val value = mcrun_blocking {
+                    interceptor.server.dispatchCommand(interceptor, request.command)
+                }
+                // plugin.logger.info(interceptor.getMessageLog())
+                return CommandResponse.newBuilder()
+                    .setStatus(Status.newBuilder().setCode(StatusCode.OK).setExtra(value.toString()).build())
+                    .setOutput(interceptor.getMessageLogStripColor())
+                    .build()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                throw e
+            }
+        } else if (request.blocking) {
+            mcrun_blocking {
                 Bukkit.dispatchCommand(console, request.command)
             }
-            return CommandResponse.newBuilder()
-                .setStatus(Status.newBuilder().setCode(StatusCode.OK).setExtra(value.toString()).build())
-                .build()
+            return CommandResponse.newBuilder().setStatus(OK).build()
         } else {
             mcrun {
                 Bukkit.dispatchCommand(console, request.command)
