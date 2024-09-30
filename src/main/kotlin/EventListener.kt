@@ -35,7 +35,7 @@ open class EventListener : Listener {
                                 .build())
                             .build()
                         ).not().then {
-                            plugin.logger.warning { "onPlayerJoin: event dropped" }
+                            plugin.warn { "onPlayerJoin: event dropped" }
                         }
                     }
                 }
@@ -51,7 +51,7 @@ open class EventListener : Listener {
                                 .build())
                             .build()
                         ).not().then {
-                            plugin.logger.warning { "onPlayerLeave: event dropped" }
+                            plugin.warn { "onPlayerLeave: event dropped" }
                         }
                     }
                 }
@@ -68,7 +68,7 @@ open class EventListener : Listener {
                                 .build())
                             .build()
                         ).not().then {
-                            plugin.logger.warning { "onPlayerDeath: event dropped" }
+                            plugin.warn { "onPlayerDeath: event dropped" }
                         }
                     }
                 }
@@ -85,7 +85,7 @@ open class EventListener : Listener {
                                 .build())
                             .build()
                         ).not().then {
-                            plugin.logger.warning { "onChatMessage: event dropped" }
+                            plugin.warn { "onChatMessage: event dropped" }
                         }
                     }
                 }
@@ -114,7 +114,7 @@ open class EventListener : Listener {
                                 .build())
                             .build()
                         ).not().then {
-                            plugin.logger.warning { "onBlockHit: event dropped" }
+                            plugin.warn { "onBlockHit: event dropped" }
                         }
                     }
                 }
@@ -138,7 +138,7 @@ open class EventListener : Listener {
                         val targetBlockFace = event.hitBlockFace
                         if (targetEntity != null) {
                             if (targetBlock != null) {
-                                plugin.logger.warning { "onProjectileHit: hit entity AND block at once" }
+                                plugin.warn { "onProjectileHit: hit entity AND block at once" }
                             }
                             // TODO: use float values of precise hit?
                             projBuilder.pos = MinecraftOuterClass.Vec3.newBuilder()
@@ -166,7 +166,7 @@ open class EventListener : Listener {
                             if (targetBlockFace != null) {
                                 projBuilder.face = targetBlockFace.name.lowercase()
                             } else {
-                                plugin.logger.warning { "onProjectileHit: block was hit but not face?" }
+                                plugin.warn { "onProjectileHit: block was hit but not face?" }
                             }
                         }
 
@@ -175,7 +175,7 @@ open class EventListener : Listener {
                             .setProjectileHit(projBuilder.build())
                             .build()
                         ).not().then {
-                            plugin.logger.warning { "onProjectileHit: event dropped" }
+                            plugin.warn { "onProjectileHit: event dropped" }
                         }
                     }
                 }

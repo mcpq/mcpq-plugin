@@ -14,42 +14,63 @@ import java.util.logging.Logger
 class MCPQPlugin : JavaPlugin(), Listener {
     val service: CommandService = CommandService(this)
     var server: Server? = null
-    var debug = false
+    var debug_mode_enabled = false
 
     companion object {
         // everything in here is static
         val logger : Logger = Bukkit.getLogger()
     }
 
+    fun debug(message: () -> String) = debug_info(message)
+    fun debug_info(message: () -> String) {
+        if (debug_mode_enabled) {
+            logger.info("[DEBUG] " + message())
+        }
+    }
+    fun debug_warn(message: () -> String) {
+        if (debug_mode_enabled) {
+            logger.warning("[DEBUG] " + message())
+        }
+    }
+    fun info(message: () -> String) {
+        logger.info(message())
+    }
+    fun warn(message: () -> String) {
+        logger.warning(message())
+    }
+    fun error(message: () -> String) {
+        logger.severe(message())
+    }
+
     override fun onEnable() {
         super.onEnable()
-        logger.info { "Plugin is starting..." }
+        info { "Plugin is starting..." }
         saveDefaultConfig() // save a copy of the default config.yml if one does not exist
 
-        debug = config.getBoolean("debug")
+        debug_mode_enabled = config.getBoolean("debug")
         val port = config.getInt("port")
         val host = config.getString("host")
 
-        if (debug) { logger.warning { "Plugin in DEBUG mode!" } }
+        debug_warn { "Plugin in DEBUG mode!" }
 
-        logger.info("Try binding to $host:$port")
+        info { "Try binding to $host:$port" }
         val address = InetSocketAddress(host, port)
         val serverBuilder = NettyServerBuilder
             .forAddress(address)
             .addService(service)
 
-        if (debug) serverBuilder.intercept(DebugServerInterceptor())
-        serverBuilder.intercept(ExceptionInterceptor())
+        if (debug_mode_enabled) serverBuilder.intercept(DebugServerInterceptor(this))
+        serverBuilder.intercept(ExceptionInterceptor(this))
         server = serverBuilder.build()
         server!!.start()
-        logger.info { "Plugin ready: gRPC server waiting on $host:$port" }
+        info { "Plugin ready: gRPC server waiting on $host:$port" }
     }
 
     override fun onDisable() {
         super.onDisable()
-        logger.info { "Plugin is shutting down..." }
+        info { "Plugin is shutting down..." }
         server?.shutdown()
         server = null
-        logger.info { "Plugin stopped" }
+        info { "Plugin stopped" }
     }
 }

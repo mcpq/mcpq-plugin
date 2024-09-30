@@ -1,10 +1,7 @@
 package org.mcpq.main
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
@@ -12,14 +9,10 @@ import org.bukkit.entity.EntityType
 import org.bukkit.event.HandlerList
 import org.mcpq.main.util.MessageInterceptor
 import protocol.MinecraftGrpcKt
-import protocol.MinecraftOuterClass
 import protocol.MinecraftOuterClass.*
-import java.lang.Thread.sleep
 import java.time.Instant
 import java.util.*
 import java.util.concurrent.CancellationException
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 
 
 inline fun Boolean.then(block: () -> Unit) {
@@ -105,7 +98,7 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
         // https://www.spigotmc.org/threads/how-do-i-get-the-output-of-dispatchcommand-command-when-called-by-callsyncmethod.354521/
         if (request.output) { // also blocking
             // TODO: can only capture Bukkit command output, not from vanilla!
-            val interceptor = MessageInterceptor(console, plugin.logger)
+            val interceptor = MessageInterceptor(console, plugin)
             try {
                 val value = mcrun_blocking {
                     interceptor.server.dispatchCommand(interceptor, request.command)
@@ -661,23 +654,22 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
             val eventType = request.eventType.name
             val listener = EventListener.createFrom(request, plugin)
             if (listener == null) {
-                // TODO: could also return some "ExceptionEvent" or similar
-                plugin.logger.warning { "getEventStream(${eventType})[${creationTime}]: Event type not supported" }
+                plugin.error { "getEventStream(${eventType})[${creationTime}]: Event type not supported" }
             } else {
-                plugin.logger.info { "getEventStream(${eventType})[${creationTime}]: Started..." }
-                Bukkit.getPluginManager().registerEvents(listener, plugin)
                 try {
+                    plugin.debug { "getEventStream(${eventType})[${creationTime}]: Started..." }
+                    Bukkit.getPluginManager().registerEvents(listener, plugin)
                     while (true) {
                         val event = listener.outQueue.take()
                         emit(event)
                     }
                 } catch (e: CancellationException) {
-                    plugin.logger.info { "getEventStream(${eventType})[${creationTime}]: Cancellation: ${e.message}" }
+                    plugin.debug { "getEventStream(${eventType})[${creationTime}]: Cancellation: ${e.message}" }
                 } catch (e: Exception) {
-                    plugin.logger.warning { "getEventStream(${eventType})[${creationTime}]: Exception: ${e.javaClass}: ${e.message}" }
+                    plugin.error { "getEventStream(${eventType})[${creationTime}]: Exception: ${e.javaClass}: ${e.message}" }
                 } finally {
                     HandlerList.unregisterAll(listener)
-                    plugin.logger.info { "getEventStream(${eventType})[${creationTime}]: stopped listener" }
+                    plugin.debug { "getEventStream(${eventType})[${creationTime}]: stopped listener" }
                 }
             }
         }.flowOn(Dispatchers.IO)

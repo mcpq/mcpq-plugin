@@ -1,11 +1,11 @@
 package org.mcpq.main.util
 
 import io.grpc.*
-import org.mcpq.main.MCPQPlugin.Companion.logger
+import org.mcpq.main.MCPQPlugin
 
-class DebugServerInterceptor : ServerInterceptor {
+class DebugServerInterceptor(val plugin: MCPQPlugin) : ServerInterceptor {
 
-    private class ExceptionTranslatingServerCall<ReqT, RespT>(
+    private inner class ExceptionTranslatingServerCall<ReqT, RespT>(
         delegate: ServerCall<ReqT, RespT>?
     ) : ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT>(delegate) {
 
@@ -13,8 +13,8 @@ class DebugServerInterceptor : ServerInterceptor {
             val newStatus = if (!status?.isOk!!) {
                 val cause = status.cause
 
-                logger.info { "closing with status: ${status.code}" }
-                logger.info { "closing with cause: ${status.cause}" }
+                plugin.debug { "closing with status: ${status.code}" }
+                plugin.debug { "closing with cause: ${status.cause}" }
 
                 if (status.code == Status.Code.UNKNOWN) {
                     val newStatus = when (cause) {
@@ -30,7 +30,7 @@ class DebugServerInterceptor : ServerInterceptor {
                 } else
                     status
             } else {
-                logger.warning { "closing" }
+                plugin.debug_warn { "closing" }
                 status
             }
 
@@ -38,56 +38,56 @@ class DebugServerInterceptor : ServerInterceptor {
         }
     }
 
-    private class LoggingServerCallListener<ReqT>(
+    private inner class LoggingServerCallListener<ReqT>(
         delegate: ServerCall.Listener<ReqT>
     ) : ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT>(delegate) {
 
         override fun onMessage(message: ReqT) {
-            logger.info { "message: $message" }
+            plugin.debug { "message: $message" }
             try {
                 super.onMessage(message)
             } catch (t: Throwable) {
-                logger.warning { "error on message ${t.stackTraceToString()}" }
+                plugin.debug_warn { "error on message ${t.stackTraceToString()}" }
                 throw t
             }
         }
 
         override fun onHalfClose() {
-            logger.info { "half-close" }
+            plugin.debug { "half-close" }
             try {
                 super.onHalfClose()
             } catch (t: Throwable) {
-                logger.warning { "error on half-close ${t.stackTraceToString()}" }
+                plugin.debug_warn { "error on half-close ${t.stackTraceToString()}" }
                 throw t
             }
         }
 
         override fun onCancel() {
-            logger.info { "cancel" }
+            plugin.debug { "cancel" }
             try {
                 super.onCancel()
             } catch (t: Throwable) {
-                logger.warning { "error on cancel ${t.stackTraceToString()}" }
+                plugin.debug_warn { "error on cancel ${t.stackTraceToString()}" }
                 throw t
             }
         }
 
         override fun onComplete() {
-            logger.info { "complete" }
+            plugin.debug { "complete" }
             try {
                 super.onComplete()
             } catch (t: Throwable) {
-                logger.warning { "error on complete ${t.stackTraceToString()}" }
+                plugin.debug_warn { "error on complete ${t.stackTraceToString()}" }
                 throw t
             }
         }
 
         override fun onReady() {
-            logger.info { "ready" }
+            plugin.debug { "ready" }
             try {
                 super.onReady()
             } catch (t: Throwable) {
-                logger.warning { "error on ready ${t.stackTraceToString()}" }
+                plugin.debug_warn { "error on ready ${t.stackTraceToString()}" }
                 throw t
             }
         }
