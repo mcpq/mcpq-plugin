@@ -204,22 +204,16 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
                 .setExtra(if (request.hasWorld()) request.world.name else "Bukkit.getWorlds().first()")
                 .build()).build()
         val block = world.getBlockAt(request.pos.x, request.pos.y, request.pos.z)
+        val type = block.type.key.toString()
+        val blockbuilder = BlockInfo.newBuilder()
+            .setBlockType(type)
         request.withData.then {
-            return BlockResponse.newBuilder()
-                .setStatus(Status.newBuilder()
-                    .setCode(StatusCode.NOT_IMPLEMENTED)
-                    .setExtra("getBlock(withData=True)")
-                    .build())
-                .setInfo(BlockInfo.newBuilder()
-                    .setBlockType(block.type.name.lowercase())
-                    .build())
-                .build()
+            blockbuilder.setBlockData(block.blockData.asString.removePrefix(type))
+            // nbt != blockData, nbt could be set on block entities
         }
         return BlockResponse.newBuilder()
             .setStatus(OK)
-            .setInfo(BlockInfo.newBuilder()
-                .setBlockType(block.type.name.lowercase())
-                .build())
+            .setInfo(blockbuilder.build())
             .build()
     }
 
@@ -232,7 +226,13 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
                 .setCode(StatusCode.BLOCK_TYPE_NOT_FOUND)
                 .setExtra(request.info.blockType)
                 .build()
-        request.info.hasNbt().then {
+        material.isBlock.not().then {
+            return Status.newBuilder()
+                .setCode(StatusCode.BLOCK_TYPE_NOT_FOUND) // could be "NOT_A_BLOCK"
+                .setExtra(request.info.blockType)
+                .build()
+        }
+        request.info.hasNbt().then { // nbt != blockData, nbt can be set on block entities
             return Status.newBuilder()
                 .setCode(StatusCode.NOT_IMPLEMENTED)
                 .setExtra("Block.info.nbt")
@@ -243,9 +243,25 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
                 .setCode(StatusCode.WORLD_NOT_FOUND)
                 .setExtra(if (request.hasWorld()) request.world.name else "Bukkit.getWorlds().first()")
                 .build()
-        val block = world.getBlockAt(request.pos.x, request.pos.y, request.pos.z)
-        mcrun {
-            block.type = material
+
+        if (request.info.blockData.isNotEmpty()) {
+            val data = try {
+                material.createBlockData(request.info.blockData)
+            } catch (e: IllegalArgumentException) {
+                return Status.newBuilder()
+                    .setCode(StatusCode.INVALID_ARGUMENT)
+                    .setExtra("Block.info.blockData")
+                    .build()
+            }
+            mcrun {
+                val block = world.getBlockAt(request.pos.x, request.pos.y, request.pos.z)
+                block.type = material
+                block.blockData = data
+            }
+        } else {
+            mcrun {
+                world.getBlockAt(request.pos.x, request.pos.y, request.pos.z).type = material
+            }
         }
         return OK
     }
@@ -259,7 +275,13 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
                 .setCode(StatusCode.BLOCK_TYPE_NOT_FOUND)
                 .setExtra(request.info.blockType)
                 .build()
-        request.info.hasNbt().then {
+        material.isBlock.not().then {
+            return Status.newBuilder()
+                .setCode(StatusCode.BLOCK_TYPE_NOT_FOUND) // could be "NOT_A_BLOCK"
+                .setExtra(request.info.blockType)
+                .build()
+        }
+        request.info.hasNbt().then { // nbt != blockData, nbt can be set on block entities
             return Status.newBuilder()
                 .setCode(StatusCode.NOT_IMPLEMENTED)
                 .setExtra("Blocks.info.nbt")
@@ -276,9 +298,28 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
                 .setExtra("Blocks.pos")
                 .build()
         }
-        mcrun {
-            for (pos in request.posList) {
-                world.getBlockAt(pos.x, pos.y, pos.z).type = material
+
+        if (request.info.blockData.isNotEmpty()) {
+            val data = try {
+                material.createBlockData(request.info.blockData)
+            } catch (e: IllegalArgumentException) {
+                return Status.newBuilder()
+                    .setCode(StatusCode.INVALID_ARGUMENT)
+                    .setExtra("Block.info.blockData")
+                    .build()
+            }
+            mcrun {
+                for (pos in request.posList) {
+                    val block = world.getBlockAt(pos.x, pos.y, pos.z)
+                    block.type = material
+                    block.blockData = data
+                }
+            }
+        } else {
+            mcrun {
+                for (pos in request.posList) {
+                    world.getBlockAt(pos.x, pos.y, pos.z).type = material
+                }
             }
         }
         return OK
@@ -293,7 +334,13 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
                 .setCode(StatusCode.BLOCK_TYPE_NOT_FOUND)
                 .setExtra(request.info.blockType)
                 .build()
-        request.info.hasNbt().then {
+        material.isBlock.not().then {
+            return Status.newBuilder()
+                .setCode(StatusCode.BLOCK_TYPE_NOT_FOUND) // could be "NOT_A_BLOCK"
+                .setExtra(request.info.blockType)
+                .build()
+        }
+        request.info.hasNbt().then { // nbt != blockData, nbt can be set on block entities
             return Status.newBuilder()
                 .setCode(StatusCode.NOT_IMPLEMENTED)
                 .setExtra("Blocks.info.nbt")
@@ -324,11 +371,34 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
         val maxY = if (pos1.y >= pos2.y) pos1.y else pos2.y
         val minZ = if (pos1.z < pos2.z) pos1.z else pos2.z
         val maxZ = if (pos1.z >= pos2.z) pos1.z else pos2.z
-        mcrun {
-            for (x in minX..maxX) {
-                for (y in minY..maxY) {
-                    for (z in minZ..maxZ) {
-                        world.getBlockAt(x, y, z).type = material
+
+        if (request.info.blockData.isNotEmpty()) {
+            val data = try {
+                material.createBlockData(request.info.blockData)
+            } catch (e: IllegalArgumentException) {
+                return Status.newBuilder()
+                    .setCode(StatusCode.INVALID_ARGUMENT)
+                    .setExtra("Block.info.blockData")
+                    .build()
+            }
+            mcrun {
+                for (x in minX..maxX) {
+                    for (y in minY..maxY) {
+                        for (z in minZ..maxZ) {
+                            val block = world.getBlockAt(x, y, z)
+                            block.type = material
+                            block.blockData = data
+                        }
+                    }
+                }
+            }
+        } else {
+            mcrun {
+                for (x in minX..maxX) {
+                    for (y in minY..maxY) {
+                        for (z in minZ..maxZ) {
+                            world.getBlockAt(x, y, z).type = material
+                        }
                     }
                 }
             }
