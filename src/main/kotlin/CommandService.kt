@@ -97,6 +97,16 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
         // checkout link, may require plugin?
         // https://www.spigotmc.org/threads/how-do-i-get-the-output-of-dispatchcommand-command-when-called-by-callsyncmethod.354521/
         if (request.output) { // also blocking
+            // TODO: problem fixed but only in newer paper API version (tested on 1.21.4):
+            //       can use the following to successfully capture command output from vanilla and bukkit:
+            // val messages = ArrayList<String>()
+            // val commandSender = Bukkit.createCommandSender {
+            //         component -> messages.add(PlainTextComponentSerializer.plainText().serialize(component))
+            // }
+            // val value = mcrun_blocking { Bukkit.dispatchCommand(commandSender, request.command)  }
+            // val finalMessage = messages.joinToString("\n")
+            // TODO: think about upgrading version / might also drop spigot support?
+
             // TODO: can only capture Bukkit command output, not from vanilla!
             val interceptor = MessageInterceptor(console, plugin)
             try {
