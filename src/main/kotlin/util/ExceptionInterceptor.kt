@@ -1,4 +1,4 @@
-package org.mcpq.main.util
+package com.github.mcpq.main.util
 
 import io.grpc.ForwardingServerCall
 import io.grpc.Metadata
@@ -6,7 +6,7 @@ import io.grpc.ServerCall
 import io.grpc.ServerCallHandler
 import io.grpc.ServerInterceptor
 import io.grpc.Status
-import org.mcpq.main.MCPQPlugin
+import com.github.mcpq.main.MCPQPlugin
 
 /**
  * Log all exceptions thrown from gRPC endpoints, and adjust Status for known exceptions.

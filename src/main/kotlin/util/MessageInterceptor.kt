@@ -1,4 +1,4 @@
-package org.mcpq.main.util
+package com.github.mcpq.main.util
 
 import net.md_5.bungee.api.ChatColor
 import net.md_5.bungee.api.chat.BaseComponent
@@ -11,7 +11,7 @@ import org.bukkit.permissions.Permission
 import org.bukkit.permissions.PermissionAttachment
 import org.bukkit.permissions.PermissionAttachmentInfo
 import org.bukkit.plugin.Plugin
-import org.mcpq.main.MCPQPlugin
+import com.github.mcpq.main.MCPQPlugin
 import java.util.*
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method

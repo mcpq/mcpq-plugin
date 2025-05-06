@@ -1,7 +1,7 @@
-package org.mcpq.main.util
+package com.github.mcpq.main.util
 
 import io.grpc.*
-import org.mcpq.main.MCPQPlugin
+import com.github.mcpq.main.MCPQPlugin
 
 class DebugServerInterceptor(val plugin: MCPQPlugin) : ServerInterceptor {
 

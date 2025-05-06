@@ -1,12 +1,12 @@
-package org.mcpq.main
+package com.github.mcpq.main
 
 import io.grpc.Server
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import org.bukkit.Bukkit
 import org.bukkit.event.Listener
 import org.bukkit.plugin.java.JavaPlugin
-import org.mcpq.main.util.DebugServerInterceptor
-import org.mcpq.main.util.ExceptionInterceptor
+import com.github.mcpq.main.util.DebugServerInterceptor
+import com.github.mcpq.main.util.ExceptionInterceptor
 import java.net.InetSocketAddress
 import java.util.logging.Logger
 

@@ -1,4 +1,4 @@
-package org.mcpq.main
+package com.github.mcpq.main
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -7,7 +7,7 @@ import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.entity.EntityType
 import org.bukkit.event.HandlerList
-import org.mcpq.main.util.MessageInterceptor
+import com.github.mcpq.main.util.MessageInterceptor
 import protocol.MinecraftGrpcKt
 import protocol.MinecraftOuterClass.*
 import java.time.Instant

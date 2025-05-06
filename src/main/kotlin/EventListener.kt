@@ -1,4 +1,4 @@
-package org.mcpq.main
+package com.github.mcpq.main
 
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler

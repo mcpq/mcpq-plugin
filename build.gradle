@@ -2,11 +2,12 @@ buildscript {
     ext.projectName = "mcpq"
 
     // bukkit API version - lowest compatible Minecraft version
-    ext.mcVersion = "1.21"
+    ext.mcVersion = "1.20.1"
     // version of minecraft.proto file - reflected in git submodule
     ext.majorVersion = "2"
     // version of this plugins iteration - increase by one on change
     ext.minorVersion = "0"
+    // TODO: when updating version, also update resources/plugin.yml and README.md
 
 
     ext.recommendedGradleVersion = "7.2"
@@ -16,11 +17,9 @@ buildscript {
     ext.shadowVersion = "7.1.2"
 
     ext.protobufPlugInVersion = "0.9.4"
-    // see https://github.com/protocolbuffers/protobuf/issues/9236#issuecomment-977718615
-    ext.protobufVersion = "3.25.0"// OR "4.26.1"
+    ext.protobufVersion = "4.26.1" // OR "3.25.0"
     ext.coroutinesVersion = "1.7.3"
     ext.grpcVersion = "1.63.0"
-    // see https://stackoverflow.com/questions/65385305/could-not-find-protoc-gen-grpc-kotlin-1-0-0-windows-x86-64-exe-io-grpcprotoc-g
     ext.grpcKotlinVersion = "1.4.1"
 
     repositories {
@@ -41,7 +40,7 @@ plugins {
 }
 
 version "$majorVersion.$minorVersion"
-group "org.mcpq"
+group "com.github.mcpq"
 
 repositories {
     mavenCentral()
@@ -52,11 +51,18 @@ repositories {
             includeGroup "org.spigotmc"
         }
     }
+//    maven {
+//        url = "https://repo.papermc.io/repository/maven-public/"
+//    }
+//    maven {
+//        url = "https://oss.sonatype.org/content/groups/public/"
+//    }
 }
 
 dependencies {
     // bukkit api - Minecraft version dependent
     compileOnly "org.spigotmc:spigot-api:$mcVersion-R0.1-SNAPSHOT"
+    // compileOnly "io.papermc.paper:paper-api:$mcVersion-R0.1-SNAPSHOT"
 
     // fix compile java alla https://github.com/grpc/grpc-java/issues/4725
     compileOnly "javax.annotation:javax.annotation-api:1.3.2" // Needed for gRPC Java
@@ -67,11 +73,12 @@ dependencies {
     // grpc
     implementation "com.google.protobuf:protobuf-java:$protobufVersion"
     implementation "com.google.protobuf:protobuf-kotlin:$protobufVersion"
-//    implementation "com.google.protobuf:protobuf-java-util:$protobufVersion"
+    // implementation "com.google.protobuf:protobuf-java-util:$protobufVersion"
 
     // for rpc io (server and stubs)
     implementation "io.grpc:grpc-netty-shaded:$grpcVersion"
-//    implementation "io.grpc:grpc-protobuf:$grpcVersion"
+    // compileOnly("org.apache.tomcat:annotations-api:6.0.53")
+    // implementation "io.grpc:grpc-protobuf:$grpcVersion"
     implementation("io.grpc:grpc-protobuf:$grpcVersion") {
         exclude group: "com.google.protobuf", module: "protobuf-java"
     }
@@ -128,13 +135,31 @@ protobuf {
     }
 }
 
+artifacts {
+    archives shadowJar
+}
+jar {
+    enabled = false // Disable the default non-shaded jar
+}
 shadowJar {
-//    minimize {
-//        exclude(dependency("io.grpc:grpc-netty-shaded"))
-//    }
+    archiveClassifier.set("") // This makes the shaded jar replace the normal one
+//    mergeServiceFiles()
+
+    relocate "com.google.protobuf", "shadow.com.google.protobuf"
+    relocate "io.grpc", "shadow.io.grpc"
+    relocate "kotlinx.coroutines", "shadow.kotlinx.coroutines"
+
+    outputs.upToDateWhen { false } // (optional, for dev)
+}
+
+tasks.build {
+    dependsOn(shadowJar)
 }
 
 compileKotlin {
     kotlinOptions.jvmTarget = javaVersion
-    // kotlinOptions.javaParameters = true
+//    kotlinOptions.javaParameters = true
+//    java.targetCompatibility = javaVersion
+//    java.sourceCompatibility = javaVersion
+//    java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 }
