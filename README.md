@@ -27,7 +27,7 @@ The plugin is compatible with certain **Minecraft versions** depending on the ve
 | Major (Protocol) | Minor (Plugin) | Paper | Spigot | Minecraft Compatible |                       Release (Plugin Download)                       |
 |-----------------:|:---------------|:-----:|:------:|:--------------------:|:---------------------------------------------------------------------:|
 |                1 | 0              |   ✅   |   ✅    |   1.18.2 - 1.21.4    | [mcpq-1.0.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v1.0) |
-|                2 | 0              |   ✅   |   ✅    |       1.20.1+        |                                 TODO                                  |
+|                2 | 0              |   ✅   |   ✅    |       1.20.1+        | [mcpq-2.0.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v2.0) |
 
 > E.g. the plugin mcpq-2.0.jar would require Minecraft Version 1.20.1 or newer
 

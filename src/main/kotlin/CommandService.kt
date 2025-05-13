@@ -35,8 +35,9 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
 
     override suspend fun getServerInfo(request: ServerInfoRequest): ServerInfoResponse {
         return ServerInfoResponse.newBuilder()
-            .setMcVersion(Bukkit.getServer().version)
+            // .setMcVersion(Bukkit.getServer().version) // cannot find pure Minecraft version in Bukkit API
             .setMcpqVersion(plugin.description.version)
+            .setServerVersion(Bukkit.getServer().version)
             .build()
     }
 
