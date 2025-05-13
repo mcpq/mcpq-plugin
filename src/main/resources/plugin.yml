@@ -1,8 +1,8 @@
-name: MCPQ
-main: org.mcpq.main.MCPQPlugin
-version: 1.0
+name: mcpq
+main: com.github.mcpq.main.MCPQPlugin
+version: 2.0
 description: "Minecraft Protobuf Queries (MCPQ): Direct communication with and control of server"
-api-version: 1.18
+api-version: 1.20
 author: Felix Wallner
 #commands:
 #  testcmd:

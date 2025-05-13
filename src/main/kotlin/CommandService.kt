@@ -1,22 +1,18 @@
-package org.mcpq.main
+package com.github.mcpq.main
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.entity.EntityType
 import org.bukkit.event.HandlerList
+import com.github.mcpq.main.util.MessageInterceptor
 import protocol.MinecraftGrpcKt
 import protocol.MinecraftOuterClass.*
 import java.time.Instant
 import java.util.*
 import java.util.concurrent.CancellationException
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 
 
 inline fun Boolean.then(block: () -> Unit) {
@@ -28,64 +24,137 @@ inline fun Boolean.then(block: () -> Unit) {
 
 class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutineImplBase() {
     val OK: Status = Status.newBuilder().setCode(StatusCode.OK).build()
-    
+
     inline fun mcrun(crossinline block: () -> Unit) = Bukkit.getScheduler()
         .runTask(plugin, kotlinx.coroutines.Runnable {block()})
 
     fun <T : Any> mcrun_blocking(block: () -> T): T {
-        var gotResult = false
-        var result: T? = null
-        val lock = ReentrantLock()
-        val condition = lock.newCondition()
-
-        val runner = kotlinx.coroutines.Runnable {
-            try {
-                result = block()
-            } finally {
-                lock.withLock {
-                    gotResult = true
-                    condition.signal()
-                }
-            }
-        }
-        Bukkit.getScheduler().runTask(plugin, runner) // start task
-        runBlocking {
-            lock.withLock {
-                if (!gotResult) {
-                    condition.await() // wait until task complete
-                }
-            }
-        }
-
-        if (!gotResult) {
-            plugin.logger.severe("mcrun_blocking did not successfully block!")
-            throw RuntimeException("mcrun_blocking did not successfully block!")
-        }
-
-        // here result cannot be null as T : Any is non-nullable
-        return result!!
+        val future = Bukkit.getScheduler().callSyncMethod(plugin, block)
+        return future.get()
     }
 
-    override suspend fun runCommand(request: CommandRequest): Status {
-        val console = Bukkit.getConsoleSender()
-        mcrun {
-            val targetFound = Bukkit.dispatchCommand(console, request.command)
-        }
-        return OK
-    }
-
-    override suspend fun postToChat(request: ChatPostRequest): Status {
-        val numPlayers = Bukkit.broadcastMessage(request.message)
-        return Status.newBuilder()
-            .setCode(StatusCode.OK)
-            .setExtra("$numPlayers") // message was sent to X players
+    override suspend fun getServerInfo(request: ServerInfoRequest): ServerInfoResponse {
+        return ServerInfoResponse.newBuilder()
+            // .setMcVersion(Bukkit.getServer().version) // cannot find pure Minecraft version in Bukkit API
+            .setMcpqVersion(plugin.description.version)
+            .setServerVersion(Bukkit.getServer().version)
             .build()
     }
 
+    override suspend fun getMaterials(request: MaterialRequest): MaterialResponse {
+        val response = MaterialResponse.newBuilder()
+        val materials = Material.values()
+        if (request.onlyKeys) {
+            materials.forEach {
+                response.addMaterials(MaterialResponse.Material.newBuilder().setKey(it.key.toString()).build())
+            }
+        } else {
+            materials.forEach {
+                response.addMaterials(MaterialResponse.Material.newBuilder()
+                    .setKey(it.key.toString())
+                    .setIsAir(it.isAir)
+                    .setIsBlock(it.isBlock)
+                    .setIsBurnable(it.isBurnable)
+                    .setIsEdible(it.isEdible)
+                    .setIsFlammable(it.isFlammable)
+                    .setIsFuel(it.isFuel)
+                    .setIsInteractable(it.isInteractable)
+                    .setIsItem(it.isItem)
+                    .setIsOccluding(it.isOccluding)
+                    .setIsSolid(it.isSolid)
+                    .setHasGravity(it.hasGravity())
+                    .build()
+                )
+            }
+        }
+        return response.setStatus(OK).build()
+    }
+
+    override suspend fun getEntityTypes(request: EntityTypeRequest): EntityTypeResponse {
+        val response = EntityTypeResponse.newBuilder()
+        val entityTypes = EntityType.values().filter { it != EntityType.UNKNOWN }
+        if (request.onlyKeys) {
+            entityTypes.forEach {
+                response.addTypes(EntityTypeResponse.EntityType.newBuilder().setKey(it.key.toString()).build())
+            }
+        } else {
+            entityTypes.forEach {
+                response.addTypes(EntityTypeResponse.EntityType.newBuilder()
+                    .setKey(it.key.toString())
+                    .setIsSpawnable(it.isSpawnable)
+                    .build()
+                )
+            }
+        }
+        return response.setStatus(OK).build()
+    }
+
+    override suspend fun runCommand(request: CommandRequest): Status {
+        return runCommandWithOptions(request).status
+    }
+
+    override suspend fun runCommandWithOptions(request: CommandRequest): CommandResponse {
+        val console = Bukkit.getConsoleSender()
+        // checkout link, may require plugin?
+        // https://www.spigotmc.org/threads/how-do-i-get-the-output-of-dispatchcommand-command-when-called-by-callsyncmethod.354521/
+        if (request.output) { // also blocking
+            // TODO: problem fixed but only in newer paper API version (tested on 1.21.4):
+            //       can use the following to successfully capture command output from vanilla and bukkit:
+            // val messages = ArrayList<String>()
+            // val commandSender = Bukkit.createCommandSender {
+            //         component -> messages.add(PlainTextComponentSerializer.plainText().serialize(component))
+            // }
+            // val value = mcrun_blocking { Bukkit.dispatchCommand(commandSender, request.command)  }
+            // val finalMessage = messages.joinToString("\n")
+            // TODO: think about upgrading version / might also drop spigot support?
+
+            // TODO: can only capture Bukkit command output, not from vanilla!
+            val interceptor = MessageInterceptor(console, plugin)
+            try {
+                val value = mcrun_blocking {
+                    interceptor.server.dispatchCommand(interceptor, request.command)
+                }
+                // plugin.logger.info(interceptor.getMessageLog())
+                return CommandResponse.newBuilder()
+                    .setStatus(Status.newBuilder().setCode(StatusCode.OK).setExtra(value.toString()).build())
+                    .setOutput(interceptor.getMessageLogStripColor())
+                    .build()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                throw e
+            }
+        } else if (request.blocking) {
+            mcrun_blocking {
+                Bukkit.dispatchCommand(console, request.command)
+            }
+            return CommandResponse.newBuilder().setStatus(OK).build()
+        } else {
+            mcrun {
+                Bukkit.dispatchCommand(console, request.command)
+            }
+            return CommandResponse.newBuilder().setStatus(OK).build()
+        }
+    }
+
+    override suspend fun postToChat(request: ChatPostRequest): Status {
+        if (request.hasPlayer()) {
+            val player = Bukkit.getPlayer(request.player.name)
+                ?: return Status.newBuilder().setCode(StatusCode.PLAYER_NOT_FOUND).setExtra(request.player.name).build()
+            player.sendMessage(request.message)
+            return OK
+        } else {
+            val numPlayers = Bukkit.broadcastMessage(request.message)
+            return Status.newBuilder()
+                .setCode(StatusCode.OK)
+                .setExtra("$numPlayers") // message was sent to X players
+                .build()
+        }
+    }
+
     override suspend fun accessWorlds(request: WorldRequest): WorldResponse {
-        // world.name == folder name (eg. world, world_nether, world_the_end)
-        // world.key == namespace name (eg. minecraft:overworld, minecraft:the_nether, minecraft:the_end)
-        // world.uid == game object id (eg. f4c3968c-99d4-46ff-9bfa-bb45ec6a17ce, ...)
+        // world.name == folder name (e.g. world, world_nether, world_the_end)
+        // world.key == namespace name (e.g. minecraft:overworld, minecraft:the_nether, minecraft:the_end)
+        // world.uid == game object id (e.g. f4c3968c-99d4-46ff-9bfa-bb45ec6a17ce, ...)
         if (request.worldsCount == 0)
             return WorldResponse.newBuilder()
                 .setStatus(OK)
@@ -146,22 +215,16 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
                 .setExtra(if (request.hasWorld()) request.world.name else "Bukkit.getWorlds().first()")
                 .build()).build()
         val block = world.getBlockAt(request.pos.x, request.pos.y, request.pos.z)
+        val type = block.type.key.toString()
+        val blockbuilder = BlockInfo.newBuilder()
+            .setBlockType(type)
         request.withData.then {
-            return BlockResponse.newBuilder()
-                .setStatus(Status.newBuilder()
-                    .setCode(StatusCode.NOT_IMPLEMENTED)
-                    .setExtra("getBlock(withData=True)")
-                    .build())
-                .setInfo(BlockInfo.newBuilder()
-                    .setBlockType(block.type.name.lowercase())
-                    .build())
-                .build()
+            blockbuilder.setBlockData(block.blockData.asString.removePrefix(type))
+            // nbt != blockData, nbt could be set on block entities
         }
         return BlockResponse.newBuilder()
             .setStatus(OK)
-            .setInfo(BlockInfo.newBuilder()
-                .setBlockType(block.type.name.lowercase())
-                .build())
+            .setInfo(blockbuilder.build())
             .build()
     }
 
@@ -174,7 +237,13 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
                 .setCode(StatusCode.BLOCK_TYPE_NOT_FOUND)
                 .setExtra(request.info.blockType)
                 .build()
-        request.info.hasNbt().then {
+        material.isBlock.not().then {
+            return Status.newBuilder()
+                .setCode(StatusCode.BLOCK_TYPE_NOT_FOUND) // could be "NOT_A_BLOCK"
+                .setExtra(request.info.blockType)
+                .build()
+        }
+        request.info.hasNbt().then { // nbt != blockData, nbt can be set on block entities
             return Status.newBuilder()
                 .setCode(StatusCode.NOT_IMPLEMENTED)
                 .setExtra("Block.info.nbt")
@@ -185,9 +254,25 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
                 .setCode(StatusCode.WORLD_NOT_FOUND)
                 .setExtra(if (request.hasWorld()) request.world.name else "Bukkit.getWorlds().first()")
                 .build()
-        val block = world.getBlockAt(request.pos.x, request.pos.y, request.pos.z)
-        mcrun {
-            block.type = material
+
+        if (request.info.blockData.isNotEmpty()) {
+            val data = try {
+                material.createBlockData(request.info.blockData)
+            } catch (e: IllegalArgumentException) {
+                return Status.newBuilder()
+                    .setCode(StatusCode.INVALID_ARGUMENT)
+                    .setExtra("Block.info.blockData")
+                    .build()
+            }
+            mcrun {
+                val block = world.getBlockAt(request.pos.x, request.pos.y, request.pos.z)
+                block.type = material
+                block.blockData = data
+            }
+        } else {
+            mcrun {
+                world.getBlockAt(request.pos.x, request.pos.y, request.pos.z).type = material
+            }
         }
         return OK
     }
@@ -201,7 +286,13 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
                 .setCode(StatusCode.BLOCK_TYPE_NOT_FOUND)
                 .setExtra(request.info.blockType)
                 .build()
-        request.info.hasNbt().then {
+        material.isBlock.not().then {
+            return Status.newBuilder()
+                .setCode(StatusCode.BLOCK_TYPE_NOT_FOUND) // could be "NOT_A_BLOCK"
+                .setExtra(request.info.blockType)
+                .build()
+        }
+        request.info.hasNbt().then { // nbt != blockData, nbt can be set on block entities
             return Status.newBuilder()
                 .setCode(StatusCode.NOT_IMPLEMENTED)
                 .setExtra("Blocks.info.nbt")
@@ -218,9 +309,28 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
                 .setExtra("Blocks.pos")
                 .build()
         }
-        mcrun {
-            for (pos in request.posList) {
-                world.getBlockAt(pos.x, pos.y, pos.z).type = material
+
+        if (request.info.blockData.isNotEmpty()) {
+            val data = try {
+                material.createBlockData(request.info.blockData)
+            } catch (e: IllegalArgumentException) {
+                return Status.newBuilder()
+                    .setCode(StatusCode.INVALID_ARGUMENT)
+                    .setExtra("Block.info.blockData")
+                    .build()
+            }
+            mcrun {
+                for (pos in request.posList) {
+                    val block = world.getBlockAt(pos.x, pos.y, pos.z)
+                    block.type = material
+                    block.blockData = data
+                }
+            }
+        } else {
+            mcrun {
+                for (pos in request.posList) {
+                    world.getBlockAt(pos.x, pos.y, pos.z).type = material
+                }
             }
         }
         return OK
@@ -235,7 +345,13 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
                 .setCode(StatusCode.BLOCK_TYPE_NOT_FOUND)
                 .setExtra(request.info.blockType)
                 .build()
-        request.info.hasNbt().then {
+        material.isBlock.not().then {
+            return Status.newBuilder()
+                .setCode(StatusCode.BLOCK_TYPE_NOT_FOUND) // could be "NOT_A_BLOCK"
+                .setExtra(request.info.blockType)
+                .build()
+        }
+        request.info.hasNbt().then { // nbt != blockData, nbt can be set on block entities
             return Status.newBuilder()
                 .setCode(StatusCode.NOT_IMPLEMENTED)
                 .setExtra("Blocks.info.nbt")
@@ -266,11 +382,34 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
         val maxY = if (pos1.y >= pos2.y) pos1.y else pos2.y
         val minZ = if (pos1.z < pos2.z) pos1.z else pos2.z
         val maxZ = if (pos1.z >= pos2.z) pos1.z else pos2.z
-        mcrun {
-            for (x in minX..maxX) {
-                for (y in minY..maxY) {
-                    for (z in minZ..maxZ) {
-                        world.getBlockAt(x, y, z).type = material
+
+        if (request.info.blockData.isNotEmpty()) {
+            val data = try {
+                material.createBlockData(request.info.blockData)
+            } catch (e: IllegalArgumentException) {
+                return Status.newBuilder()
+                    .setCode(StatusCode.INVALID_ARGUMENT)
+                    .setExtra("Block.info.blockData")
+                    .build()
+            }
+            mcrun {
+                for (x in minX..maxX) {
+                    for (y in minY..maxY) {
+                        for (z in minZ..maxZ) {
+                            val block = world.getBlockAt(x, y, z)
+                            block.type = material
+                            block.blockData = data
+                        }
+                    }
+                }
+            }
+        } else {
+            mcrun {
+                for (x in minX..maxX) {
+                    for (y in minY..maxY) {
+                        for (z in minZ..maxZ) {
+                            world.getBlockAt(x, y, z).type = material
+                        }
                     }
                 }
             }
@@ -596,23 +735,22 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
             val eventType = request.eventType.name
             val listener = EventListener.createFrom(request, plugin)
             if (listener == null) {
-                // TODO: could also return some "ExceptionEvent" or similar
-                plugin.logger.warning { "getEventStream(${eventType})[${creationTime}]: Event type not supported" }
+                plugin.error { "getEventStream(${eventType})[${creationTime}]: Event type not supported" }
             } else {
-                plugin.logger.info { "getEventStream(${eventType})[${creationTime}]: Started..." }
-                Bukkit.getPluginManager().registerEvents(listener, plugin)
                 try {
+                    plugin.debug { "getEventStream(${eventType})[${creationTime}]: Started..." }
+                    Bukkit.getPluginManager().registerEvents(listener, plugin)
                     while (true) {
                         val event = listener.outQueue.take()
                         emit(event)
                     }
                 } catch (e: CancellationException) {
-                    plugin.logger.info { "getEventStream(${eventType})[${creationTime}]: Cancellation: ${e.message}" }
+                    plugin.debug { "getEventStream(${eventType})[${creationTime}]: Cancellation: ${e.message}" }
                 } catch (e: Exception) {
-                    plugin.logger.warning { "getEventStream(${eventType})[${creationTime}]: Exception: ${e.javaClass}: ${e.message}" }
+                    plugin.error { "getEventStream(${eventType})[${creationTime}]: Exception: ${e.javaClass}: ${e.message}" }
                 } finally {
                     HandlerList.unregisterAll(listener)
-                    plugin.logger.info { "getEventStream(${eventType})[${creationTime}]: stopped listener" }
+                    plugin.debug { "getEventStream(${eventType})[${creationTime}]: stopped listener" }
                 }
             }
         }.flowOn(Dispatchers.IO)

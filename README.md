@@ -2,7 +2,7 @@
 
 This Minecraft Java server plugin is designed to allow other *client libraries* to control the server it is running on. 
 These client libraries can be written in other programming languages thus allowing for interoperability between the Java plugin ecosystem and other languages.
-The plugin is design to be run on [Spigot](https://www.spigotmc.org/) or [Paper](https://papermc.io/) Minecraft servers.
+The plugin is design to be run on [Paper](https://papermc.io/), or alternatively [Spigot](https://www.spigotmc.org/), Minecraft servers.
 
 This plugin is heavily inspired by [RaspberryJuice](https://github.com/zhuowei/RaspberryJuice) (and its client library [MCPI](https://github.com/martinohanlon/mcpi)) and attempts a more modern approach for communication between server and client that also works for more modern versions of Minecraft.
 
@@ -14,7 +14,7 @@ You can download the compiled and bundled jars in the [release](https://github.c
 
 ```
 server
-│   paper/spigot-<version>.jar
+│   paper-<mcversion>.jar
 └───plugins
     │   mcpq-<version>.jar
     │   ...
@@ -24,17 +24,18 @@ The plugin's major version reflects the version number of the [protobuf protocol
 The minor version is incremented with patches and additional functionality of this plugin.
 The plugin is compatible with certain **Minecraft versions** depending on the version of the Bukkit API the plugin uses, this may change with time, so checkout the table below for compatibility:
 
-| Major (Protocol) | Minor (Plugin) | Minecraft Compatible |                       Release (Plugin Download)                       |
-|-----------------:|:---------------|:--------------------:|:---------------------------------------------------------------------:|
-|                1 | 0              |       1.18.2+        | [mcpq-1.0.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v1.0) |
+| Major (Protocol) | Minor (Plugin) | Paper | Spigot | Minecraft Compatible |                       Release (Plugin Download)                       |
+|-----------------:|:---------------|:-----:|:------:|:--------------------:|:---------------------------------------------------------------------:|
+|                1 | 0              |   ✅   |   ✅    |   1.18.2 - 1.21.4    | [mcpq-1.0.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v1.0) |
+|                2 | 0              |   ✅   |   ✅    |       1.20.1+        | [mcpq-2.0.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v2.0) |
 
-> E.g. the plugin mcpq-1.0.jar would require Minecraft Version 1.18.2 or newer
+> E.g. the plugin mcpq-2.0.jar would require Minecraft Version 1.20.1 or newer
 
 Usually the plugin can be used with *newer Minecraft versions* with only minor limitations in functionality at most.
 Additionally, the plugin *should* be compatible with *older* client versions as backwards compatibility should be kept (which is also supported by the protocol buffers).
 However, using *newer client* versions with older plugin versions will most likely only work over *minor versions* if that.
 
-TLDR; download the newest version of the plugin that supports your Minecraft version (see table above)
+TLDR; download the newest version of the plugin that supports your Minecraft version and your server (see table above)
 
 ## Client Libraries
 
@@ -49,11 +50,11 @@ The following client implementations exist for the following languages:
 
 ## Configuration
 
-The plugin comes with a config file that will be generated/read from `plugins/MCPQ/config.yml` in which the following can be configured:
+The plugin comes with a config file that will be generated/read from `plugins/mcpq/config.yml` in which the following can be configured:
 
 * host: localhost - hostname or ip address from which connections to the plugin are accepted. The default `localhost` does only allow connections from the same device the server is running on, while `0.0.0.0` would allow connections from anywhere.
 * port: 1789 - the port on which a MCPQ client can connect to the plugin
-* debug: false - whether or not to print additional debug information especially for gRPC
+* debug: false - whether to print additional debug information especially for gRPC
 
 ## Build Instructions
 
@@ -75,9 +76,9 @@ or, if you already cloned the repository:
 git submodule update --init --recursive
 ```
 
-To build the plugin use `./gradlew shadowJar` or use the `shadowJar` target with the gradle plugin for *IntelliJ IDEA* (Community), which I also recommend for development.
+To build the plugin use `./gradlew build` or use the `build` target with the gradle plugin for *IntelliJ IDEA* (Community), which I also recommend for development.
 
-The final plugin with all dependencies included will be a bundled `jar` at `build/libs/mcpq-<version>-all.jar`.
+The final plugin with all dependencies included will be a bundled `jar` at `build/libs/mcpq-<version>.jar`.
 
 ## License
 
