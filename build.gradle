@@ -6,7 +6,7 @@ buildscript {
     // version of minecraft.proto file - reflected in git submodule
     ext.majorVersion = "2"
     // version of this plugins iteration - increase by one on change
-    ext.minorVersion = "0"
+    ext.minorVersion = "1"
     // TODO: when updating version, also update resources/plugin.yml and README.md
 
 
@@ -45,24 +45,16 @@ group "com.github.mcpq"
 repositories {
     mavenCentral()
     maven {
-        url = "https://hub.spigotmc.org/nexus/content/repositories/snapshots/"
-        content {
-            includeGroup "org.bukkit"
-            includeGroup "org.spigotmc"
-        }
+        url = "https://repo.papermc.io/repository/maven-public/"
     }
-//    maven {
-//        url = "https://repo.papermc.io/repository/maven-public/"
-//    }
-//    maven {
-//        url = "https://oss.sonatype.org/content/groups/public/"
-//    }
+    maven {
+        url = "https://oss.sonatype.org/content/groups/public/"
+    }
 }
 
 dependencies {
-    // bukkit api - Minecraft version dependent
-    compileOnly "org.spigotmc:spigot-api:$mcVersion-R0.1-SNAPSHOT"
-    // compileOnly "io.papermc.paper:paper-api:$mcVersion-R0.1-SNAPSHOT"
+    // paper api - Minecraft version dependent
+    compileOnly "io.papermc.paper:paper-api:$mcVersion-R0.1-SNAPSHOT"
 
     // fix compile java alla https://github.com/grpc/grpc-java/issues/4725
     compileOnly "javax.annotation:javax.annotation-api:1.3.2" // Needed for gRPC Java
@@ -115,7 +107,6 @@ protobuf {
         }
 
         grpckt {
-//            artifact = "io.grpc:protoc-gen-grpc-kotlin:$grpcKotlinVersion"
             artifact = "io.grpc:protoc-gen-grpc-kotlin:$grpcKotlinVersion:jdk8@jar"
         }
     }

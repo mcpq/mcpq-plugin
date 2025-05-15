@@ -1,12 +1,12 @@
 package com.github.mcpq.main
 
+import io.papermc.paper.event.player.AsyncChatEvent
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
 import org.bukkit.event.entity.PlayerDeathEvent
 import org.bukkit.event.entity.ProjectileHitEvent
-import org.bukkit.event.player.AsyncPlayerChatEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
@@ -64,7 +64,7 @@ open class EventListener : Listener {
                                 .setTrigger(MinecraftOuterClass.Player.newBuilder()
                                     .setName(event.entity.name)
                                     .build())
-                                .setMessage(event.deathMessage)
+                                .setMessage(component_text(event.deathMessage()))
                                 .build())
                             .build()
                         ).not().then {
@@ -74,14 +74,14 @@ open class EventListener : Listener {
                 }
                 MinecraftOuterClass.EventType.EVENT_CHAT_MESSAGE -> object : EventListener() {
                     @EventHandler(ignoreCancelled=true)
-                    fun onChatMessage(event: AsyncPlayerChatEvent) {
+                    fun onChatMessage(event: AsyncChatEvent) {
                         outQueue.offer(Event.newBuilder()
                             .setType(MinecraftOuterClass.EventType.EVENT_CHAT_MESSAGE)
                             .setPlayerMsg(Event.PlayerAndMessage.newBuilder()
                                 .setTrigger(MinecraftOuterClass.Player.newBuilder()
                                     .setName(event.player.name)
                                     .build())
-                                .setMessage(event.message)
+                                .setMessage(component_text(event.message()))
                                 .build())
                             .build()
                         ).not().then {
