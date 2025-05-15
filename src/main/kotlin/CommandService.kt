@@ -2,12 +2,13 @@ package com.github.mcpq.main
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.entity.EntityType
 import org.bukkit.event.HandlerList
-import com.github.mcpq.main.util.MessageInterceptor
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import protocol.MinecraftGrpcKt
 import protocol.MinecraftOuterClass.*
 import java.time.Instant
@@ -21,6 +22,13 @@ inline fun Boolean.then(block: () -> Unit) {
     }
 }
 
+fun component_text(c: Component?): String {
+    if (c == null) {
+        return ""
+    } else {
+        return PlainTextComponentSerializer.plainText().serialize(c)
+    }
+}
 
 class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutineImplBase() {
     val OK: Status = Status.newBuilder().setCode(StatusCode.OK).build()
@@ -35,7 +43,7 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
 
     override suspend fun getServerInfo(request: ServerInfoRequest): ServerInfoResponse {
         return ServerInfoResponse.newBuilder()
-            // .setMcVersion(Bukkit.getServer().version) // cannot find pure Minecraft version in Bukkit API
+            .setMcVersion(Bukkit.getMinecraftVersion()) // leave empty if pure MC version cannot be retrieved
             .setMcpqVersion(plugin.description.version)
             .setServerVersion(Bukkit.getServer().version)
             .build()
@@ -43,7 +51,7 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
 
     override suspend fun getMaterials(request: MaterialRequest): MaterialResponse {
         val response = MaterialResponse.newBuilder()
-        val materials = Material.values()
+        val materials = Material.entries
         if (request.onlyKeys) {
             materials.forEach {
                 response.addMaterials(MaterialResponse.Material.newBuilder().setKey(it.key.toString()).build())
@@ -72,7 +80,7 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
 
     override suspend fun getEntityTypes(request: EntityTypeRequest): EntityTypeResponse {
         val response = EntityTypeResponse.newBuilder()
-        val entityTypes = EntityType.values().filter { it != EntityType.UNKNOWN }
+        val entityTypes = EntityType.entries.filter { it != EntityType.UNKNOWN }
         if (request.onlyKeys) {
             entityTypes.forEach {
                 response.addTypes(EntityTypeResponse.EntityType.newBuilder().setKey(it.key.toString()).build())
@@ -94,43 +102,28 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
     }
 
     override suspend fun runCommandWithOptions(request: CommandRequest): CommandResponse {
-        val console = Bukkit.getConsoleSender()
-        // checkout link, may require plugin?
-        // https://www.spigotmc.org/threads/how-do-i-get-the-output-of-dispatchcommand-command-when-called-by-callsyncmethod.354521/
         if (request.output) { // also blocking
-            // TODO: problem fixed but only in newer paper API version (tested on 1.21.4):
-            //       can use the following to successfully capture command output from vanilla and bukkit:
-            // val messages = ArrayList<String>()
-            // val commandSender = Bukkit.createCommandSender {
-            //         component -> messages.add(PlainTextComponentSerializer.plainText().serialize(component))
-            // }
-            // val value = mcrun_blocking { Bukkit.dispatchCommand(commandSender, request.command)  }
-            // val finalMessage = messages.joinToString("\n")
-            // TODO: think about upgrading version / might also drop spigot support?
-
-            // TODO: can only capture Bukkit command output, not from vanilla!
-            val interceptor = MessageInterceptor(console, plugin)
-            try {
-                val value = mcrun_blocking {
-                    interceptor.server.dispatchCommand(interceptor, request.command)
-                }
-                // plugin.logger.info(interceptor.getMessageLog())
-                return CommandResponse.newBuilder()
-                    .setStatus(Status.newBuilder().setCode(StatusCode.OK).setExtra(value.toString()).build())
-                    .setOutput(interceptor.getMessageLogStripColor())
-                    .build()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                throw e
+            // TODO: createCommandSender is specific to the paper (Bukkit) api
+            val messages = ArrayList<String>()
+            val commandSender = Bukkit.createCommandSender {
+                    component -> messages.add(component_text(component))
             }
+            val targetFound = mcrun_blocking { Bukkit.dispatchCommand(commandSender, request.command)  }
+            val finalMessage = messages.joinToString("\n")
+            return CommandResponse.newBuilder()
+                .setStatus(Status.newBuilder().setCode(StatusCode.OK).setExtra(targetFound.toString()).build())
+                .setOutput(finalMessage)
+                .build()
         } else if (request.blocking) {
-            mcrun_blocking {
-                Bukkit.dispatchCommand(console, request.command)
+            val targetFound = mcrun_blocking {
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), request.command)
             }
-            return CommandResponse.newBuilder().setStatus(OK).build()
+            return CommandResponse.newBuilder()
+                .setStatus(Status.newBuilder().setCode(StatusCode.OK).setExtra(targetFound.toString()))
+                .build()
         } else {
             mcrun {
-                Bukkit.dispatchCommand(console, request.command)
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), request.command)
             }
             return CommandResponse.newBuilder().setStatus(OK).build()
         }
@@ -143,7 +136,7 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
             player.sendMessage(request.message)
             return OK
         } else {
-            val numPlayers = Bukkit.broadcastMessage(request.message)
+            val numPlayers = Bukkit.broadcast(Component.text(request.message))
             return Status.newBuilder()
                 .setCode(StatusCode.OK)
                 .setExtra("$numPlayers") // message was sent to X players
@@ -509,7 +502,7 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
         }
 
         mcrun {
-            new_location?.let { player.teleport(it) }
+            new_location.let { player.teleport(it) }
         }
         return OK
     }
