@@ -21,7 +21,7 @@ This plugin uses [Protocol Buffers](https://github.com/mcpq/mcpq-proto) and the 
       │   ...
   ```
 * Choose and install a supported [client library](#client-libraries), for example, [Python](https://github.com/mcpq/mcpq-python)
-* Your done!
+* You're done!
 
 ## Versions
 
@@ -46,7 +46,7 @@ TLDR; if you use Paper, then use a plugin that is build against Paper API (not S
 Originally the plugin was built against the *Spigot/Bukkit API*, which meant that [Spigot](https://www.spigotmc.org/) as well as all forks,
 like [Paper](https://papermc.io/), were automatically supported.
 However, [Paper decided to hard fork Spigot](https://forums.papermc.io/threads/the-future-of-paper-hard-fork.1451/),
-which means that starting from Minecraft version 1.21.4 and onwards Paper will not longer be a fork of Spigot
+which means that starting from Minecraft version 1.21.4 and onwards Paper will no longer be a fork of Spigot
 and thus the Paper API will slowly diverge from the Spigot/Bukkit API.
 
 For us this means the following:
@@ -55,7 +55,7 @@ For us this means the following:
   * Provisionally, support for Spigot will remain in place for major releases and essential bug fixes.
 
 This setup allows us to use the more powerful Paper API for plugin versions that are built against it,
-so if you are using Paper use a plugin that is build against that API!
+so if you are using Paper use a plugin that is build against that API instead!
 
 #### Protobuf Compatibility
 
@@ -65,7 +65,7 @@ and choose a client version that supports that version (or older)
 A plugin *should* be compatible with *older* client versions as backwards compatibility should be kept, which
 is enabled by the protobuf protocol. (Breaking changes of the protocol are recorded [here](https://github.com/mcpq/mcpq-proto?tab=readme-ov-file#version-changes))
 
-> E.g., a *client* build against protocol v1 should also be able to use a *plugin* built against protocol v2
+> E.g., a *client* build against protocol v1 should also be able to communicate wtih a *plugin* built against protocol v2
 
 However, using *newer client* versions with older plugin versions will very likely *not* work and is not supported.
 
