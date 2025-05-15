@@ -1,48 +1,89 @@
 # Minecraft Protobuf Queries (MCPQ) Server Plugin
 
-This Minecraft Java server plugin is designed to allow other *client libraries* to control the server it is running on. 
+> [!IMPORTANT]  
+> You are on the Spigot/Bukkit API branch of MCPQ! 
+> Spigot will provisionally get support for major releases and essential bug fixes.
+> For the Paper plugin see the [main branch](https://github.com/mcpq/mcpq-plugin) instead.
+
+This Minecraft Java server plugin is designed to allow other *client libraries* to control the server it is running on.
 These client libraries can be written in other programming languages thus allowing for interoperability between the Java plugin ecosystem and other languages.
-The plugin is design to be run on [Paper](https://papermc.io/), or alternatively [Spigot](https://www.spigotmc.org/), Minecraft servers.
+The plugin is design to be run on [Spigot](https://www.spigotmc.org/) Minecraft servers - for [Paper](https://papermc.io/) server see the [main branch](https://github.com/mcpq/mcpq-plugin).
 
 This plugin is heavily inspired by [RaspberryJuice](https://github.com/zhuowei/RaspberryJuice) (and its client library [MCPI](https://github.com/martinohanlon/mcpi)) and attempts a more modern approach for communication between server and client that also works for more modern versions of Minecraft.
 
 This plugin uses [Protocol Buffers](https://github.com/mcpq/mcpq-proto) and the [gRPC](https://grpc.io/) library and protocols to communicate with clients written in other programming languages and is itself written in [Kotlin](https://kotlinlang.org/).
 
+## Usage
+
+* Download [Spigot](https://www.spigotmc.org/) or another Minecraft server that implements its API
+* Download the compiled and bundled jar depending on the [table in versions](#versions)
+* Put the `mcpq-<version>.jar` plugin in the server's `plugins` folder:
+  ```
+  server
+  │   spigot-<mcversion>.jar
+  └───plugins
+      │   mcpq-<version>.jar
+      │   ...
+  ```
+* Choose and install a supported [client library](#client-libraries), for example, [Python](https://github.com/mcpq/mcpq-python)
+* You're done!
+
 ## Versions
 
-You can download the compiled and bundled jars in the [release](https://github.com/mcpq/mcpq-plugin/releases) section of the repository and put it into your server's `plugins` folder:
+> [!NOTE]
+> This table does only contain Spigot-compatible versions of the plugin! For seeing all versions see [main versions](https://github.com/mcpq/mcpq-plugin?tab=readme-ov-file#versions)
 
-```
-server
-│   paper-<mcversion>.jar
-└───plugins
-    │   mcpq-<version>.jar
-    │   ...
-```
+| Major (Protocol) | Minor (Plugin) |     Paper     |    Spigot     | Minecraft Compatible |                       Release (Plugin Download)                       |
+|-----------------:|:---------------|:-------------:|:-------------:|:--------------------:|:---------------------------------------------------------------------:|
+|                1 | 0              |       ✅       |       ✅       |   1.18.2 - 1.21.4    | [mcpq-1.0.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v1.0) |
+|                2 | 0              | ✅<sup>1</sup> | ✅<sup>1</sup> |       1.20.1+        | [mcpq-2.0.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v2.0) |
 
-The plugin's major version reflects the version number of the [protobuf protocol version](https://github.com/mcpq/mcpq-proto) and thus which types of communication is possible with the server.
-The minor version is incremented with patches and additional functionality of this plugin.
-The plugin is compatible with certain **Minecraft versions** depending on the version of the Bukkit API the plugin uses, this may change with time, so checkout the table below for compatibility:
+> Version Notes: <br>
+> <sup>1</sup>: Limited output for blocking commands
 
-| Major (Protocol) | Minor (Plugin) | Paper | Spigot | Minecraft Compatible |                       Release (Plugin Download)                       |
-|-----------------:|:---------------|:-----:|:------:|:--------------------:|:---------------------------------------------------------------------:|
-|                1 | 0              |   ✅   |   ✅    |   1.18.2 - 1.21.4    | [mcpq-1.0.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v1.0) |
-|                2 | 0              |   ✅   |   ✅    |       1.20.1+        | [mcpq-2.0.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v2.0) |
+* The plugin's *major version* reflects the version number of the [protobuf protocol version](https://github.com/mcpq/mcpq-proto) and thus which types of communication is possible with the server.
+* The *minor version* is incremented with patches and additional functionality of this plugin.
+* The plugin is compatible with certain *Minecraft versions* depending on the *type and version of API the plugin uses*.
+    * E.g. the plugin `mcpq-2.0.jar` would require Minecraft Version 1.20.1 or newer for both Paper and Spigot (Spigot API)
 
-> E.g. the plugin mcpq-2.0.jar would require Minecraft Version 1.20.1 or newer
+#### Paper and Spigot Compatibility
 
-Usually the plugin can be used with *newer Minecraft versions* with only minor limitations in functionality at most.
-Additionally, the plugin *should* be compatible with *older* client versions as backwards compatibility should be kept (which is also supported by the protocol buffers).
-However, using *newer client* versions with older plugin versions will most likely only work over *minor versions* if that.
+TLDR; if you use Paper, then use a plugin that is build against Paper API (not Spigot compatible)
+
+Originally the plugin was built against the *Spigot/Bukkit API*, which meant that [Spigot](https://www.spigotmc.org/) as well as all forks,
+like [Paper](https://papermc.io/), were automatically supported.
+However, [Paper decided to hard fork Spigot](https://forums.papermc.io/threads/the-future-of-paper-hard-fork.1451/),
+which means that starting from Minecraft version 1.21.4 and onwards Paper will no longer be a fork of Spigot
+and thus the Paper API will slowly diverge from the Spigot/Bukkit API.
+
+For us this means the following:
+* The [main branch](https://github.com/mcpq/mcpq-plugin/tree/main) will be built against the Paper API and *will no longer be compatible with Spigot*!
+* A separate [main-spigot branch](https://github.com/mcpq/mcpq-plugin/tree/main-spigot) will be maintained for Spigot compatibility.
+    * Provisionally, support for Spigot will remain in place for major releases and essential bug fixes.
+
+This setup allows us to use the more powerful Paper API for plugin versions that are built against it,
+so if you are using Paper use a plugin that is build against that API instead!
+
+#### Protobuf Compatibility
 
 TLDR; download the newest version of the plugin that supports your Minecraft version and your server (see table above)
+and choose a client version that supports that version (or older)
+
+A plugin *should* be compatible with *older* client versions as backwards compatibility should be kept, which
+is enabled by the protobuf protocol. (Breaking changes of the protocol are recorded [here](https://github.com/mcpq/mcpq-proto?tab=readme-ov-file#version-changes))
+
+> E.g., a *client* build against protocol v1 should also be able to communicate with a *plugin* built against protocol v2
+
+However, using *newer client* versions with older plugin versions will very likely *not* work and is not supported.
+
+> E.g., a *client* build against protocol v2 *is not* compatible with a *plugin* built against protocol v1
 
 ## Client Libraries
 
 A client library allows for communication with the server plugin.
 Due to its design [gRPC](https://grpc.io/) allows for implementations in a [large number of programming languages](https://grpc.io/docs/languages/).
 
-The following client implementations exist for the following languages:
+The following official client implementations exist:
 
 * Python: [mcpq-python](https://github.com/mcpq/mcpq-python)
 
