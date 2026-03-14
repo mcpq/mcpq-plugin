@@ -6,7 +6,7 @@ buildscript {
     // version of minecraft.proto file - reflected in git submodule
     ext.majorVersion = "2"
     // version of this plugins iteration - increase by one on change
-    ext.minorVersion = "1"
+    ext.minorVersion = "2"
     // TODO: when updating version, also update resources/plugin.yml and README.md
 
 
