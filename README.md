@@ -25,11 +25,12 @@ This plugin uses [Protocol Buffers](https://github.com/mcpq/mcpq-proto) and the 
 
 ## Versions
 
-| Major (Protocol) | Minor (Plugin) |     Paper     |    Spigot     | Minecraft Compatible |                       Release (Plugin Download)                       |
-|-----------------:|:---------------|:-------------:|:-------------:|:--------------------:|:---------------------------------------------------------------------:|
-|                1 | 0              |       ✅       |       ✅       |   1.18.2 - 1.21.4    | [mcpq-1.0.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v1.0) |
-|                2 | 0              | ✅<sup>1</sup> | ✅<sup>1</sup> |       1.20.1+        | [mcpq-2.0.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v2.0) |
-|                2 | 1              |       ✅       |       ❌       |       1.20.1+        | [mcpq-2.1.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v2.1) |
+| Major (Protocol) | Minor (Plugin) |    Status    |     Paper     |    Spigot     | Minecraft Compatible |                       Release (Plugin Download)                       |
+|-----------------:|:---------------|:------------:|:-------------:|:-------------:|:--------------------:|:---------------------------------------------------------------------:|
+|                1 | 0              |    🟡️Old      |       ✅       |         ✅          |   1.18.2 - 1.21.4    | [mcpq-1.0.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v1.0) |
+|                2 | 0              |   🟢Spigot    | ✅<sup>1</sup> | ✅<sup>1</sup> |       1.20.1+        | [mcpq-2.0.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v2.0) |
+|                2 | 1              | ⚪️Deprecated |       ✅       |       ❌        |       1.20.1+        | [mcpq-2.1.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v2.1) |
+|                2 | 2              |    🟢Paper    |          ✅    |       ❌       |       1.20.1+        | [mcpq-2.2.jar](https://github.com/mcpq/mcpq-plugin/releases/tag/v2.2) |
 
 > Version Notes: <br>
 > <sup>1</sup>: Limited output for blocking commands

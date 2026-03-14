@@ -14,6 +14,7 @@ import protocol.MinecraftOuterClass.*
 import java.time.Instant
 import java.util.*
 import java.util.concurrent.CancellationException
+import java.util.concurrent.ExecutionException
 
 
 inline fun Boolean.then(block: () -> Unit) {
@@ -108,19 +109,33 @@ class CommandService(val plugin: MCPQPlugin) : MinecraftGrpcKt.MinecraftCoroutin
             val commandSender = Bukkit.createCommandSender {
                     component -> messages.add(component_text(component))
             }
-            val targetFound = mcrun_blocking { Bukkit.dispatchCommand(commandSender, request.command)  }
-            val finalMessage = messages.joinToString("\n")
-            return CommandResponse.newBuilder()
-                .setStatus(Status.newBuilder().setCode(StatusCode.OK).setExtra(targetFound.toString()).build())
-                .setOutput(finalMessage)
-                .build()
-        } else if (request.blocking) {
-            val targetFound = mcrun_blocking {
-                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), request.command)
+            try {
+                val targetFound = mcrun_blocking { Bukkit.dispatchCommand(commandSender, request.command)  }
+                val finalMessage = messages.joinToString("\n")
+                return CommandResponse.newBuilder()
+                    .setStatus(Status.newBuilder().setCode(StatusCode.OK).setExtra(targetFound.toString()).build())
+                    .setOutput(finalMessage)
+                    .build()
+            } catch (exc: ExecutionException) {
+                plugin.warn { exc.cause.toString() }
+                return CommandResponse.newBuilder()
+                    .setStatus(Status.newBuilder().setCode(StatusCode.UNKNOWN_ERROR).setExtra(exc.message).build())
+                    .build()
             }
-            return CommandResponse.newBuilder()
-                .setStatus(Status.newBuilder().setCode(StatusCode.OK).setExtra(targetFound.toString()))
-                .build()
+        } else if (request.blocking) {
+            try {
+                val targetFound = mcrun_blocking {
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), request.command)
+                }
+                return CommandResponse.newBuilder()
+                    .setStatus(Status.newBuilder().setCode(StatusCode.OK).setExtra(targetFound.toString()))
+                    .build()
+            } catch (exc: ExecutionException) {
+                plugin.warn { exc.cause.toString() }
+                return CommandResponse.newBuilder()
+                    .setStatus(Status.newBuilder().setCode(StatusCode.UNKNOWN_ERROR).setExtra(exc.message).build())
+                    .build()
+            }
         } else {
             mcrun {
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), request.command)
