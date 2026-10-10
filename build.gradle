@@ -1,156 +1,107 @@
-buildscript {
-    ext.projectName = "mcpq"
-
-    // bukkit API version - lowest compatible Minecraft version
-    ext.mcVersion = "1.20.1"
-    // version of minecraft.proto file - reflected in git submodule
-    ext.majorVersion = "2"
-    // version of this plugins iteration - increase by one on change
-    ext.minorVersion = "2"
-    // TODO: when updating version, also update resources/plugin.yml and README.md
-
-
-    ext.recommendedGradleVersion = "7.2"
-
-    ext.javaVersion = JavaVersion.VERSION_17
-    ext.kotlinVersion = "1.9.0"
-    ext.shadowVersion = "7.1.2"
-
-    ext.protobufPlugInVersion = "0.9.4"
-    ext.protobufVersion = "4.26.1" // OR "3.25.0"
-    ext.coroutinesVersion = "1.7.3"
-    ext.grpcVersion = "1.63.0"
-    ext.grpcKotlinVersion = "1.4.1"
-
-    repositories {
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath "com.google.protobuf:protobuf-gradle-plugin:$protobufPlugInVersion"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
-    }
-}
-
 plugins {
     id "idea"
-    id "org.jetbrains.kotlin.jvm" version "${kotlinVersion}"
-    id "com.google.protobuf" version "${protobufPlugInVersion}"
-    id "com.github.johnrengelman.shadow" version "${shadowVersion}"
+    id "org.jetbrains.kotlin.jvm" version "2.0.0"
+    id "com.google.protobuf" version "0.9.4"
+    id "com.gradleup.shadow" version "8.3.7"
+    id "java-library"
 }
 
-version "$majorVersion.$minorVersion"
+def versions = [
+    kotlin: "2.0.0",
+    coroutines: "1.8.1",
+    grpc: "1.63.0",
+    grpcKotlin: "1.4.1",
+    protobuf: "4.26.1",
+    annotations: "1.3.2",
+    mc: "1.21.1"
+]
+
+ext {
+    projectName = "mcpq"
+    majorVersion = "2"
+    minorVersion = "3"
+}
+
+version "${majorVersion}.${minorVersion}"
 group "com.github.mcpq"
 
 repositories {
     mavenCentral()
     maven {
-        url = "https://repo.papermc.io/repository/maven-public/"
+        url = uri("https://repo.papermc.io/repository/maven-public/")
     }
-    maven {
-        url = "https://oss.sonatype.org/content/groups/public/"
+}
+
+// Java configuration
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
 dependencies {
-    // paper api - Minecraft version dependent
-    compileOnly "io.papermc.paper:paper-api:$mcVersion-R0.1-SNAPSHOT"
-
+    compileOnly "io.papermc.paper:paper-api:${versions.mc}-R0.1-SNAPSHOT"
     // fix compile java alla https://github.com/grpc/grpc-java/issues/4725
-    compileOnly "javax.annotation:javax.annotation-api:1.3.2" // Needed for gRPC Java
-
-    // coroutines
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion"
-
-    // grpc
-    implementation "com.google.protobuf:protobuf-java:$protobufVersion"
-    implementation "com.google.protobuf:protobuf-kotlin:$protobufVersion"
-    // implementation "com.google.protobuf:protobuf-java-util:$protobufVersion"
-
-    // for rpc io (server and stubs)
-    implementation "io.grpc:grpc-netty-shaded:$grpcVersion"
-    // compileOnly("org.apache.tomcat:annotations-api:6.0.53")
-    // implementation "io.grpc:grpc-protobuf:$grpcVersion"
-    implementation("io.grpc:grpc-protobuf:$grpcVersion") {
+    compileOnly "javax.annotation:javax.annotation-api:${versions.annotations}" // Needed for gRPC Java
+    
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions.coroutines}"
+    implementation "com.google.protobuf:protobuf-java:${versions.protobuf}"
+    implementation "com.google.protobuf:protobuf-kotlin:${versions.protobuf}"
+    implementation "io.grpc:grpc-netty-shaded:${versions.grpc}"
+    implementation("io.grpc:grpc-protobuf:${versions.grpc}") {
         exclude group: "com.google.protobuf", module: "protobuf-java"
     }
-    implementation "io.grpc:grpc-stub:$grpcVersion"
-    implementation "io.grpc:grpc-kotlin-stub:$grpcKotlinVersion"
+    implementation "io.grpc:grpc-stub:${versions.grpc}"
+    implementation "io.grpc:grpc-kotlin-stub:${versions.grpcKotlin}"
 }
 
-// make sure that grpc-protobuf (and others) do not use an older protobuf version internally
-configurations.all {
-    resolutionStrategy.eachDependency {
-        if (requested.group == "com.google.protobuf") {
-            useVersion(protobufVersion)
-            because("protobuf-java must match protoc and generated code version")
-        }
-        if (requested.group == "io.grpc") {
-            if (requested.name == "grpc-kotlin-stub" || requested.name == "protoc-gen-grpc-kotlin") {
-                useVersion(grpcKotlinVersion)
-            } else {
-                useVersion(grpcVersion)
-            }
-        }
+dependencies.constraints {
+    implementation("com.google.protobuf:protobuf-java") {
+        version { strictly versions.protobuf }
+        because("Must match protoc version for codegen compatibility")
     }
 }
-
 
 protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc:$protobufVersion"
-    }
-
+    protoc { artifact = "com.google.protobuf:protoc:${versions.protobuf}" }
     plugins {
-        grpc {
-            artifact = "io.grpc:protoc-gen-grpc-java:$grpcVersion"
-        }
-
-        grpckt {
-            artifact = "io.grpc:protoc-gen-grpc-kotlin:$grpcKotlinVersion:jdk8@jar"
-        }
+        grpc { artifact = "io.grpc:protoc-gen-grpc-java:${versions.grpc}" }
+        grpckt { artifact = "io.grpc:protoc-gen-grpc-kotlin:${versions.grpcKotlin}:jdk8@jar" }
     }
-
     generateProtoTasks {
         all().each { task ->
-            task.plugins {
-                // Generate Java gRPC classes
-                grpc { }
-                // Generate Kotlin gRPC using the custom plugin from library
-                grpckt { }
-            }
-//            task.builtins {
-//                kotlin { }
-//            }
+            task.plugins { grpc { }; grpckt { } }
         }
     }
 }
 
-artifacts {
-    archives shadowJar
+kotlin {
+    jvmToolchain(21)
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
+        freeCompilerArgs.addAll("-Xjsr305=strict")
+    }
 }
-jar {
-    enabled = false // Disable the default non-shaded jar
-}
-shadowJar {
-    archiveClassifier.set("") // This makes the shaded jar replace the normal one
-//    mergeServiceFiles()
 
+tasks.jar.configure {
+    enabled = false
+}
+
+processResources {
+    filesMatching('**/plugin.yml') {
+        expand(version: version)
+    }
+}
+
+shadowJar {
+    archiveClassifier.set("")
+    outputs.upToDateWhen { false }
+    
     relocate "com.google.protobuf", "shadow.com.google.protobuf"
     relocate "io.grpc", "shadow.io.grpc"
     relocate "kotlinx.coroutines", "shadow.kotlinx.coroutines"
-
-    outputs.upToDateWhen { false } // (optional, for dev)
+    
+    mergeServiceFiles()
 }
 
-tasks.build {
-    dependsOn(shadowJar)
-}
-
-compileKotlin {
-    kotlinOptions.jvmTarget = javaVersion
-//    kotlinOptions.javaParameters = true
-//    java.targetCompatibility = javaVersion
-//    java.sourceCompatibility = javaVersion
-//    java.toolchain.languageVersion = JavaLanguageVersion.of(17)
-}
+tasks.build.dependsOn(shadowJar)
